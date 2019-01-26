@@ -10,16 +10,35 @@ import click
 import logging
 # import pprint
 import sys
-from time import time()
+# from time import time
 import json
 
-# import pynyzo
+from pynyzo.messagetype import MessageType
+from pynyzo.message import Message
+from pynyzo.messageobject import EmptyMessageObject
+from pynyzo.messages.statusresponse import StatusResponse
+from pynyzo.connection import Connection
+from pynyzo.helpers import tornado_logger
+import pynyzo.config as config
 
 
 __version__ = '0.0.1'
 
 
 VERBOSE = False
+
+
+def connect(ctx):
+    """Tries to connect to the peer, depending on the context."""
+    if ctx.obj.get('connection', None):
+        return
+    try:
+        connection = Connection(ctx.obj['host'], ctx.obj['port'], verbose=ctx.obj['verbose'])
+        ctx.obj['connection'] = connection
+    except Exception as e:
+        app_log.error(f"Error {e} connecting to {ctx.obj['host']}:{ctx.obj['port']}.")
+        sys.exit()
+    return
 
 
 @click.group()
@@ -51,8 +70,8 @@ def balance(ctx, address):
     # connect(ctx)
     # load_keys(ctx, address)
     if VERBOSE:
-        print("Connected to {}".format(ctx.obj['connection'].ipport))
-        print("address {}".format(ctx.obj['address']))
+        print(f"Connected to {ctx.obj['host']}:{ctx.obj['port']}")
+        print(f"address {ctx.obj['address']}")
     # print(json.dumps(balance))
     return balance
 
@@ -61,11 +80,14 @@ def balance(ctx, address):
 @click.pass_context
 def status(ctx):
     """Get Status of distant server"""
-    # connect(ctx)
+    connect(ctx)
     if VERBOSE:
-        print("Connected to {}".format(ctx.obj['connection'].ipport))
+        print(f"Connected to {ctx.obj['host']}:{ctx.obj['port']}")
+    empty = EmptyMessageObject(app_log=app_log)
+    message = Message(MessageType.StatusRequest17, empty, app_log=app_log)
+    res = ctx.obj['connection'].fetch(message)
+    print(res)
     # print(json.dumps(status))
-    return status
 
 
 @cli.command()
@@ -84,7 +106,7 @@ def send(ctx, recipient, amount, above: float=0):
     # load_keys(ctx)
     # connect(ctx)
     # con = ctx.obj['connection']
-
+    """
     if above > 0:
         my_balance = float(con.command('balanceget', [ctx.obj['address']])[0])
         if my_balance <= above:
@@ -93,6 +115,7 @@ def send(ctx, recipient, amount, above: float=0):
             print(json.dumps({"result": "Error", "reason": "Balance too low, {} instead of required {}"
                              .format(my_balance, above)}))
             return
+    """
 
 
 if __name__ == '__main__':
@@ -106,6 +129,10 @@ if __name__ == '__main__':
     formatter = logging.Formatter('%(asctime)s [%(levelname)-5s] %(message)s')
     ch.setFormatter(formatter)
     app_log.addHandler(ch)
+
+    # TODO: use user private dir
+    config.NYZO_SEED = 'private_seed'
+    config.load()
 
     cli(obj={})
 

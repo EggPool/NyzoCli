@@ -1,6 +1,7 @@
 .idea
 *.json
 tmp
+private_seed
 # devs can use a symlink to the pynyzo code
 pynyzo
 # Byte-compiled / optimized / DLL files
