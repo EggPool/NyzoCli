@@ -1,2 +1,2 @@
 click
-pynyzo >= 0.0.2
+pynyzo >= 0.0.3

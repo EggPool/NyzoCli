@@ -1,28 +1,27 @@
 #!/usr/bin/env python3
 """
-Console mode basic Nyzo client - Connects to a peer, console mode.
+Console mode Nyzo client - Connects to a peer, console mode.
 
 EggdraSyl - Jan. 2019.
 
 """
 
-import click
+import json
 import logging
 # import pprint
 import sys
-# from time import time
-import json
 
-from pynyzo.messagetype import MessageType
+import click
+
+import pynyzo.config as config
+from modules.helpers import get_private_dir
+from pynyzo.byteutil import ByteUtil
+from pynyzo.connection import Connection
 from pynyzo.message import Message
 from pynyzo.messageobject import EmptyMessageObject
-from pynyzo.messages.statusresponse import StatusResponse
-from pynyzo.connection import Connection
-from pynyzo.helpers import tornado_logger
-import pynyzo.config as config
+from pynyzo.messagetype import MessageType
 
-
-__version__ = '0.0.1'
+__version__ = '0.0.2'
 
 
 VERBOSE = False
@@ -44,22 +43,45 @@ def connect(ctx):
 @click.group()
 @click.option('--host', '-h', default="127.0.0.1", help='Set a specific peer (default=localhost)')
 @click.option('--port', '-p', default=9444, help='Peer port (default 9444)')
-@click.option('--verbose', '-v', default=False)
+@click.option('--json', '-j', is_flag=True, default=False, help='Try to always answer with json (default false)')
+@click.option('--verbose', '-v', is_flag=True, default=False, help='Be verbose! (default false)')
 @click.pass_context
-def cli(ctx, port, host, verbose):
+def cli(ctx, port, host, verbose, json):
     global VERBOSE
     ctx.obj['host'] = host
     ctx.obj['port'] = port
+    ctx.obj['json'] = json
     ctx.obj['verbose'] = verbose
     VERBOSE = verbose
     ctx.obj['connection'] = None
+    if VERBOSE:
+        app_log.info(f"Key Loaded, public id {ByteUtil.bytes_as_string_with_dashes(config.PUBLIC_KEY.to_bytes())}")
 
 
 @cli.command()
 @click.pass_context
 def version(ctx):
     """Print version"""
-    print("Nyzocli version {}".format(__version__))
+    if ctx.obj['json']:
+        print(json.dumps({"version": __version__, "private_dir": get_private_dir}))
+    else:
+        print(f"Nyzocli version {__version__} - Your private dir is {get_private_dir()}")
+
+
+@cli.command()
+@click.pass_context
+def info(ctx):
+    """Print version"""
+    if ctx.obj['json']:
+        print(json.dumps({"private_dir": get_private_dir(),
+                          "public_address": ByteUtil.bytes_as_string_with_dashes(config.PUBLIC_KEY.to_bytes()),
+                          "default_host": ctx.obj['host'],
+                          "default_port": ctx.obj['port'],
+                          }))
+    else:
+        print(f"Your private dir is {get_private_dir()}")
+        print(f"Your public address is {ByteUtil.bytes_as_string_with_dashes(config.PUBLIC_KEY.to_bytes())}")
+        print(f"Default host is {ctx.obj['host']} on port {ctx.obj['port']}")
 
 
 @cli.command()
@@ -70,9 +92,9 @@ def balance(ctx, address):
     # connect(ctx)
     # load_keys(ctx, address)
     if VERBOSE:
-        print(f"Connected to {ctx.obj['host']}:{ctx.obj['port']}")
-        print(f"address {ctx.obj['address']}")
-    # print(json.dumps(balance))
+        app_log.info(f"Connected to {ctx.obj['host']}:{ctx.obj['port']}")
+        app_log.info(f"address {ctx.obj['address']}")
+    print(json.dumps(balance))
     return balance
 
 
@@ -82,11 +104,11 @@ def status(ctx):
     """Get Status of distant server"""
     connect(ctx)
     if VERBOSE:
-        print(f"Connected to {ctx.obj['host']}:{ctx.obj['port']}")
+        app_log.info(f"Connected to {ctx.obj['host']}:{ctx.obj['port']}")
     empty = EmptyMessageObject(app_log=app_log)
     message = Message(MessageType.StatusRequest17, empty, app_log=app_log)
     res = ctx.obj['connection'].fetch(message)
-    print(res)
+    print(res.to_json())
     # print(json.dumps(status))
 
 
@@ -131,8 +153,9 @@ if __name__ == '__main__':
     app_log.addHandler(ch)
 
     # TODO: use user private dir
-    config.NYZO_SEED = 'private_seed'
-    config.load()
+    private_dir = get_private_dir()
+    config.NYZO_SEED = private_dir + '/private_seed'
+    config.load(private_dir)
 
     cli(obj={})
 
