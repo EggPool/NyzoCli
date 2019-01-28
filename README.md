@@ -69,6 +69,28 @@ You can query a specific verifier (default is 127.0.0.1)
 `./Nyzocli.py status`  
 `./Nyzocli.py --host=verifier0.nyzo.co status`
 
+```
+{
+  "message_type": "StatusResponse18", 
+  "value": [
+    "nickname: Nyzo 0", 
+    "version: 487", 
+    "ID: b5fd...173b", 
+    "mesh: 1398 total, 527 in cycle", 
+    "cycle length: 530", 
+    "transactions: 0", 
+    "retention edge: 1694074", 
+    "trailing edge: 1694098", 
+    "frozen edge: 1696216 (Grimnoshtadrano)", 
+    "open edge: 1696217", 
+    "blocks transmitted/created: 206/104847", 
+    "votes requested: 458237", 
+    "- h: +1, n: 2, v: 79(79)", 
+    "requester identifier: abd7...4c9f"
+  ]
+}
+```
+
 ### Get a specific block info
 
 > Block has to be recent enough, checking status before hand could help.
