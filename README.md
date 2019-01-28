@@ -56,7 +56,12 @@ or as json:
 `./Nyzocli.py --json balance`
 
 ```
-{"block": 1696070, "balance": 219449753, "blocks_until_fee": 151, "address": "abd7fede35a84b108a36e6dc361d9b32ca84d149f6eb85b4a4e63015278d4c9f"}
+{
+  "block": 1696070, 
+  "balance": 219449753, 
+  "blocks_until_fee": 151, 
+  "address": "abd7fede35a84b108a36e6dc361d9b32ca84d149f6eb85b4a4e63015278d4c9f"
+}
 ```
 
 You can query a specific verifier (default is 127.0.0.1)
@@ -146,7 +151,7 @@ Show your appreciation, send a few coffees or pizzas to the devs:
 `abd7fede35a84b10-8a36e6dc361d9b32-ca84d149f6eb85b4-a4e63015278d4c9f`
 
 
-## Known twerks
+## Known twerks
 
 Still some debug or trace messages left over from thhe pynyzo package to be cleaned up later on.
 
@@ -159,6 +164,6 @@ Still some debug or trace messages left over from thhe pynyzo package to be clea
 * 0.0.1 - Initial crude version, nothing works yet
 
 
-## About
+## About
 
 Official Nyzo repo: https://github.com/n-y-z-o/nyzoVerifier
