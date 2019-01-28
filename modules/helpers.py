@@ -25,3 +25,15 @@ def base_path():
         locale_path = path.abspath(path.dirname(sys.argv[0]))
     print("Local path", locale_path)
     return locale_path
+
+
+def extract_status_lines(status: list, key:str) -> list:
+    """Extract the required value from its key
+    for extended values, return a list. Ex for frozen edge: ['1695783', '(ajmo2-1.)']
+    """
+    result = tuple()
+    for line in status:
+        if line.startswith(key):
+            _, value = line.split(':')
+            value = value.strip()
+            return value.split(' ')

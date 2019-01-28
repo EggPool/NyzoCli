@@ -14,14 +14,15 @@ import sys
 import click
 
 import pynyzo.config as config
-from modules.helpers import get_private_dir
+from modules.helpers import get_private_dir, extract_status_lines
 from pynyzo.byteutil import ByteUtil
 from pynyzo.connection import Connection
 from pynyzo.message import Message
 from pynyzo.messageobject import EmptyMessageObject
 from pynyzo.messagetype import MessageType
+from pynyzo.messages.blockrequest import BlockRequest
 
-__version__ = '0.0.2'
+__version__ = '0.0.3'
 
 
 VERBOSE = False
@@ -38,6 +39,13 @@ def connect(ctx):
         app_log.error(f"Error {e} connecting to {ctx.obj['host']}:{ctx.obj['port']}.")
         sys.exit()
     return
+
+
+def reconnect(ctx):
+    """Should not be needed?"""
+    ctx.obj['connection'].close()
+    ctx.obj['connection'].sdef = None  # Temp hack for pynyzo version
+    ctx.obj['connection'].check_connection()
 
 
 @click.group()
@@ -86,17 +94,71 @@ def info(ctx):
 
 @cli.command()
 @click.pass_context
+@click.argument('block_number', type=int)
+def block(ctx, block_number):
+    """Get a block detail"""
+    connect(ctx)
+    if VERBOSE:
+        app_log.info(f"Connected to {ctx.obj['host']}:{ctx.obj['port']}")
+        app_log.info(f"block {block_number}")
+    req = BlockRequest(start_height=block_number, end_height=block_number, include_balance_list=False, app_log=app_log)
+    message = Message(MessageType.BlockRequest11, req, app_log=app_log)
+    res = ctx.obj['connection'].fetch(message)
+    print(res.to_json())
+
+
+@cli.command()
+@click.pass_context
 @click.argument('address', default='', type=str)
 def balance(ctx, address):
     """Get balance of an ADDRESS (Uses the one from local id by default)"""
-    # connect(ctx)
-    # load_keys(ctx, address)
+    connect(ctx)
+    if address == '':
+        address = config.PUBLIC_KEY.to_bytes().hex()
+    else:
+        address = address.replace('-', '')
+    if VERBOSE:
+        app_log.info(f"Get balance for address {address}")
+    assert(len(address) == 64)  # TODO: better user warning
+
     if VERBOSE:
         app_log.info(f"Connected to {ctx.obj['host']}:{ctx.obj['port']}")
-        app_log.info(f"address {ctx.obj['address']}")
-    print(json.dumps(balance))
-    return balance
+        app_log.info(f"address {address}")
+    empty = EmptyMessageObject()
+    message = Message(MessageType.StatusRequest17, empty, app_log=app_log)
+    res = ctx.obj['connection'].fetch(message)
+    status = res.get_lines()
+    frozen = int(extract_status_lines(status, "frozen edge")[0])
+    if VERBOSE:
+        app_log.info(f"Frozen Edge: {frozen}")
 
+    reconnect(ctx)
+
+    req = BlockRequest(start_height=frozen, end_height=frozen, include_balance_list=True, app_log=app_log)
+    message2 = Message(MessageType.BlockRequest11, req, app_log=app_log)
+    res = ctx.obj['connection'].fetch(message2)
+    # Wow, this is quite heavy. move some logic the pynyzo
+    # Also list is *supposed* to be sorted, can help find faster
+    bin_address = bytes.fromhex(address)
+    for item in res.get_initial_balance_list().get_items():
+        if item.get_identifier() == bin_address:
+            if ctx.obj['json']:
+                print(json.dumps({"block": frozen, "balance":item.get_balance(), "blocks_until_fee": item.get_blocks_until_fee(),
+                                  "address": address}))
+            else:
+                print(f"At block: {frozen}")
+                print(f"Your Balance is: {item.get_balance()/1000000}")
+                print(f"Blocks until fee: {item.get_blocks_until_fee()}")
+            return (item.get_balance(), item.get_blocks_until_fee())
+
+    # Address Not found
+    if ctx.obj['json']:
+        print(json.dumps({"block": frozen, "balance": 0, "blocks_until_fee": None, "address": address}))
+    else:
+        print(f"At block: {frozen}")
+        print(f"Your Balance is: N/A")
+        print(f"Blocks until fee: N/A")
+    return (0, 0)
 
 @cli.command()
 @click.pass_context
