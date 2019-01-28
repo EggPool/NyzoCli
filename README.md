@@ -1,6 +1,8 @@
 # Nyzocli
 A simple but efficient Nyzo client for command line and automation usage, in Python.
 
+Uses the pynyzo client package https://github.com/EggPool/pynyzo
+
 ## Prerequisites
 
 Python3.6+
@@ -167,3 +169,5 @@ Still some debug or trace messages left over from thhe pynyzo package to be clea
 ## About
 
 Official Nyzo repo: https://github.com/n-y-z-o/nyzoVerifier
+
+Pynyzo python package https://github.com/EggPool/pynyzo
