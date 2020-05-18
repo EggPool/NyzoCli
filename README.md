@@ -141,6 +141,38 @@ You can query a specific verifier (default is 127.0.0.1) - use yours only or you
 }
 ```
 
+
+### Vote for a cycle tx:
+
+Vote for the given cycle tx sig with the optionally provided key_... nyzostring.  
+If no seed is given, use the wallet one.
+
+`./Nyzocli.py vote sig_gc6VHCY_yfjRc_DyosRLdi084AbY5wP9yVdTTRhajp4JUk7nbRw9c-aufwEwGY~.x0m55u.v.tGzjnA7VYP4V0m-eXyG`
+`./Nyzocli.py vote sig_gc6VHCY_yfjRc_DyosRLdi084AbY5wP9yVdTTRhajp4JUk7nbRw9c-aufwEwGY~.x0m55u.v.tGzjnA7VYP4V0m-eXyG 1`
+`./Nyzocli.py vote sig_gc6VHCY_yfjRc_DyosRLdi084AbY5wP9yVdTTRhajp4JUk7nbRw9c-aufwEwGY~.x0m55u.v.tGzjnA7VYP4V0m-eXyG 0 key_...  `  
+
+Sample answer:
+```
+[
+  {'block height': '7572863', 
+   'sender ID (raw)': 'f7e40b5eeb7471d2-2b50d63e945e8e05-9658c62f5e2ada2f-82da1b6267330a34', 
+   'sender ID (Nyzo string)': 'id__8fwB2TZIu77iaT3nfGhvAxnnncpMozIrbWbr6U9EcNFSAvPFJ~pC', 
+   'receiver ID (raw)': 'null', 
+   'receiver ID (Nyzo string)': 'null', 
+   'amount': '∩0.000000', 
+   'previous verifier ID (raw)': '0b19818e841b764c-30a176a3e32b9a98-7f1cbf03204bb093-58c45147288ed7f9', 
+   'previous verifier ID (Nyzo string)': 'id__80JqxpY46Vqcca5UF~cIDGy_7b-384LNBTA4kktFAKwXLEfqcvaR', 
+   'expected verifier ID (raw)': '1c86e2b23e1b6e4e-ec70c48c53fc2ad9-6e366c82889d4f6d-3784e570d769874f', 
+   'expected verifier ID (Nyzo string)': 'id__81Q6WI8~6UXeZ734A5f-aKCLdDQ2z9Tfsjv4Xo3orpufoNietWIg', 
+   'next verifier ID (raw)': 'aed5ae8e69d5c823-ecf5474d60533a62-6079ac05667a1bdb-1c7bc88c4bb65fd9', 
+   'next verifier ID (Nyzo string)': 'id__8aZmIFXGTtxAZfm7jn1jeD9xvrN5qEFsUPPZQ8PbKC_qzSwCQ0g5', 
+   'forwarded': 'true'}
+]
+
+```
+
+
+
 ## Not working yet :
 
 Send a tip to Nyzocli dev:  
