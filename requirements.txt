@@ -1,2 +1,4 @@
 click
-pynyzo >= 0.0.4
+requests
+pynyzo >= 0.0.8
+nyzostrings >= 0.0.6

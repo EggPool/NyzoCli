@@ -1,6 +1,11 @@
 import sys
 from os import path, makedirs
 
+# from xml.dom.minidom import parseString, getDOMImplementation
+# import xml.etree.ElementTree as ET
+
+import re
+
 # Where the wallets and other potential private info are to be stored.
 # It's a dir under the user's own home directory.
 PRIVATE_SUB_DIR = 'nyzo-private'
@@ -37,3 +42,22 @@ def extract_status_lines(status: list, key:str) -> list:
             _, value = line.split(':')
             value = value.strip()
             return value.split(' ')
+
+
+def fake_table_to_json(html: str):
+    test_header = re.search(r'<div class="header-row">([^"]*)</div><div class="data-row">', html)
+    headers = []
+    if test_header:
+        headers = test_header.groups()[0].replace('<div>', '').split("</div>")[:-1]  # closing /div
+    test_content = re.search(r'<div class="data-row">(.*)</div></div></div>', html)
+    values = []
+    if test_content:
+        content = test_content.groups()[0].replace('<div>', '')\
+            .replace('<div class="extra-wrap">', '') \
+            .replace('<div class="data-row">', '') \
+            .split("</div>")
+        while len(content) >= len(headers):
+            part = content[0:len(headers)]
+            content = content[len(headers)+1:]
+            values.append(dict(zip(headers, part)))
+    return values

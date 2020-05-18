@@ -44,8 +44,12 @@ Default host is 127.0.0.1 on port 9444
 ```
 
 ### Get your balance:
+
+Get balance from the given verifier (defaults to localhost)
   
-`./Nyzocli.py balance`
+`./Nyzocli.py balance`  
+`./Nyzocli.py balance address`    
+`./Nyzocli.py -i ip.of.verifier.toask balance address `
 
 ```
 At block: 1696064
@@ -66,15 +70,15 @@ or as json:
 }
 ```
 
-You can query a specific verifier (default is 127.0.0.1)
+You can query a specific verifier (default is 127.0.0.1) - use yours only or you'll likely be blacklisted.
 
-`./Nyzocli.py --host=verifier0.nyzo.co balance`
+`./Nyzocli.py -i verifier0.nyzo.co balance abd7fede35a84b10-8a36e6dc361d9b32-ca84d149f6eb85b4-a4e63015278d4c9f `
 
 
 ### Get a node status
 
 `./Nyzocli.py status`  
-`./Nyzocli.py --host=verifier0.nyzo.co status`
+`./Nyzocli.py -i verifier0.nyzo.co status`
 
 ```
 {
@@ -102,7 +106,7 @@ You can query a specific verifier (default is 127.0.0.1)
 
 > Block has to be recent enough, checking status before hand could help.
 
-`./Nyzocli.py --host=verifier0.nyzo.co block 1696093` 
+`./Nyzocli.py -i verifier0.nyzo.co block 1696093` 
 
 ```
 {
@@ -155,9 +159,11 @@ Show your appreciation, send a few coffees or pizzas to the devs:
 
 ## Known twerks
 
-Still some debug or trace messages left over from thhe pynyzo package to be cleaned up later on.
+Still some debug or trace messages left over from the pynyzo package to be cleaned up later on.
 
 ## Releases
+
+* 0.0.4 - Vote command, local signing, use of client API to forward
 
 * 0.0.3 - Block and balance commands
 
