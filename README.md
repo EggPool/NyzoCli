@@ -173,6 +173,29 @@ Sample answer:
 
 ```
 
+## Utils
+
+see utils dir
+
+### massvote.py
+
+A Mass voter helper
+
+Say you have several in-cycle verifiers, and wand to vote for several cycle tx.  
+You can vote from your sentinel but that would expose your verifiers (close timing, same order every time)
+
+This script uses NyzoCli individual vote feature to vote with every verifier for every cycle tx once.  
+It's to be run on a local secure box.
+
+- create a "keys.txt" text file with one key_ a line, from in-cycle verifiers
+- create a "sigs.txt" text file with one sig_ vote a line  
+each line has a sig, one space, the vote (1 for yes or 0 for no)  
+if no vote is provided, default 1 is assumed.  
+For ncfp3, you can get and rename the ncfp3-sigs.txt from open nyzo github to vote yes for all.
+- edit massvote.py settings if needed (min and max wait time)   
+- run massvote.py  
+- you'll get a "vote.sh" script you can then chmod +x and run. This will run the Nyzocli with all needed votes, randomized and with random wait in between.
+
 
 
 ## Not working yet :
