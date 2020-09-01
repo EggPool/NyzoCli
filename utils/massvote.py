@@ -21,13 +21,23 @@ For ncfp3, you can get and rename the ncfp3-sigs.txt from open nyzo github to vo
 
 # You can adjust here to your liking. wait will be random between these two.
 # these are seconds.
-MIN_WAIT_BETWEEN_VOTE = 1
-MAX_WAIT_BETWEEN_VOTE = 10
+MIN_WAIT_BETWEEN_VOTE = 20
+MAX_WAIT_BETWEEN_VOTE = 120
+
+# Set to False if you don't want to query nyzo.today for existing votes.
+# Does not give any info about your verifiers, just asks the list of votes for a given sig_
+# With ASK_NYZO_TODAY = True, you can re-run the script after a first pass to check and re-submit missing votes.
+ASK_NYZO_TODAY = True
 
 # ----==---- You should not need to edit below ----==----
 
+import json
+# import sys
 from os import path
 from random import shuffle, randint
+from requests import get
+from nyzostrings.nyzostringencoder import NyzoStringEncoder
+from pynyzo.keyutil import KeyUtil
 
 
 def read_sig_vote(line):
@@ -36,6 +46,9 @@ def read_sig_vote(line):
         # default vote is Yes
         line.append("1")
     return tuple(line)
+
+
+VOTED = {}
 
 
 if __name__ == '__main__':
@@ -51,14 +64,30 @@ if __name__ == '__main__':
     with open("sigs.txt") as fp:
         sigs = fp.readlines()
         sigs = [read_sig_vote(line) for line in sigs if line.strip() != '']
-    total = len(sigs) * len(keys)
-    estimate = ((MIN_WAIT_BETWEEN_VOTE + MAX_WAIT_BETWEEN_VOTE)/2 + 3) * total/60
-    print("{} keys and {} sigs, total {} votes.\nEstimated time {} min".format(len(keys), len(sigs), total, estimate))
-    total= list()
     for sig in sigs:
-        for key in keys:
-            total.append((sig, key))
+        if ASK_NYZO_TODAY:
+            hex_sig = NyzoStringEncoder.decode(sig[0]).get_bytes().hex()
+            res = get(f"https://nyzo.today/api/transactionvotes/{hex_sig}")
+            VOTED[sig[0]] = json.loads(res.text)
+        else:
+            VOTED[sig[0]] = {}
+
+    total_pre = len(sigs) * len(keys)
+    estimate = ((MIN_WAIT_BETWEEN_VOTE + MAX_WAIT_BETWEEN_VOTE) / 2 + 3) * total_pre / 60
+    print("{} keys and {} sigs, total {} votes.\nEstimated time {} min"
+          .format(len(keys), len(sigs), total_pre, estimate))
+    total = list()
+    for key in keys:
+        key_hex = NyzoStringEncoder.decode(key).get_bytes().hex()
+        # calc matching id as hex
+        id_hex = KeyUtil.private_to_public(key_hex)
+        for sig in sigs:
+            if id_hex not in VOTED[sig[0]]:
+                total.append((sig, key))
     shuffle(total)
+    estimate = ((MIN_WAIT_BETWEEN_VOTE + MAX_WAIT_BETWEEN_VOTE) / 2 + 3) * len(total) / 60
+    print(f"{len(keys)} keys and {len(sigs)} sigs, total after filter {len(total)} votes "
+          f"instead of {total_pre}.\nEstimated time {estimate} min")
     bash = ["#!/bin/bash"]
     for item in total:
         line = "../Nyzocli.py vote {} {} {}".format(item[0][0], item[0][1], item[1])

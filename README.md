@@ -194,8 +194,13 @@ if no vote is provided, default 1 is assumed.
 For ncfp3, you can get and rename the ncfp3-sigs.txt from open nyzo github to vote yes for all.
 - edit massvote.py settings if needed (min and max wait time)   
 - run massvote.py  
-- you'll get a "vote.sh" script you can then chmod +x and run. This will run the Nyzocli with all needed votes, randomized and with random wait in between.
+- you'll get a "vote.sh" script you can then chmod +x and run. This will run the Nyzocli with all needed votes, randomized and with random wait in between.  
+(of course, you can check that vote.sh in a text editor and make sure it does what it claims)
 
+**New:** Now does query nyzo.today API for existing votes.  
+Does not give any info about your verifiers, just asks the list of votes for a given sig_ and process locally.  
+That way, you can re-run the script after a first pass to check and re-submit missing votes.  
+You can deactivate that feature.
 
 
 ## Not working yet :
@@ -219,6 +224,8 @@ Show your appreciation, send a few coffees or pizzas to the devs:
 Still some debug or trace messages left over from the pynyzo package to be cleaned up later on.
 
 ## Releases
+
+* 0.0.5 - Randomized Massvote and omitting of existing votes with help from nyzo.today API.
 
 * 0.0.4 - Vote command, local signing, use of client API to forward
 

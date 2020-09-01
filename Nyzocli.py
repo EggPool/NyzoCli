@@ -31,7 +31,7 @@ from pynyzo.messages.blockrequest import BlockRequest
 from pynyzo.messagetype import MessageType
 from pynyzo.transaction import Transaction
 
-__version__ = '0.0.4'
+__version__ = '0.0.5'
 
 
 VERBOSE = False
