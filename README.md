@@ -5,11 +5,20 @@ Uses the pynyzo client package https://github.com/EggPool/pynyzo
 
 ## Prerequisites
 
-Python3.6+
+Python3.6+, pip
+
+On default Ubuntu you can install pip by `apt install python3-pip`  
+
 
 ## Installation
 
 `pip3 install -r requirements.txt`
+
+If you have errors when installing the requirements, you may need other libs that can be missing on your setup.  
+You can try to  
+`sudo apt install python3-setuptools`  
+`sudo apt install build-essential`  
+and redo the requirements install.
 
 Nyzocli needs a `private_seed` file in the user private directory.      
 Just copy/rename the seed file you want to use.  
