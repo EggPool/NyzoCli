@@ -14,14 +14,17 @@ from os import path
 from time import time
 
 import click
+import re
 from nyzostrings.nyzostringencoder import NyzoStringEncoder
 # from nyzostrings.nyzostringsignature import NyzoStringSignature
 # from nyzostrings.nyzostringprivateseed import NyzoStringPrivateSeed
 from nyzostrings.nyzostringtransaction import NyzoStringTransaction
+from nyzostrings.nyzostringpublicidentifier import NyzoStringPublicIdentifier
 from requests import get
 
 import pynyzo.config as config
-from modules.helpers import get_private_dir, extract_status_lines, fake_table_to_json
+from modules.helpers import get_private_dir, extract_status_lines, \
+    fake_table_to_list, fake_table_frozen_to_dict
 from pynyzo.byteutil import ByteUtil
 from pynyzo.connection import Connection
 from pynyzo.keyutil import KeyUtil
@@ -31,7 +34,7 @@ from pynyzo.messages.blockrequest import BlockRequest
 from pynyzo.messagetype import MessageType
 from pynyzo.transaction import Transaction
 
-__version__ = '0.0.5'
+__version__ = '0.0.6'
 
 
 VERBOSE = False
@@ -61,12 +64,16 @@ def reconnect(ctx):
 
 
 @click.group()
-@click.option('--verifier_ip', '-i', default="127.0.0.1", help='Set a specific verifier ip (default=localhost)')
-@click.option('--client', '-c', default="https://client.nyzo.co", help='Set a specific client (default=https://client.nyzo.co)')
+@click.option('--verifier_ip', '-i', default="127.0.0.1",
+              help='Set a specific verifier ip (default=localhost)')
+@click.option('--client', '-c', default="https://client.nyzo.co",
+              help='Set a specific client (default=https://client.nyzo.co)')
 @click.option('--port', '-p', default=80, help='Client port (default 80)')
 @click.option('--unlock', '-U', default="", help='Wallet Unlock code')
-@click.option('--json', '-j', is_flag=True, default=False, help='Try to always answer with json (default false)')
-@click.option('--verbose', '-v', is_flag=True, default=False, help='Be verbose! (default false)')
+@click.option('--json', '-j', is_flag=True, default=False,
+              help='Try to always answer with json (default false)')
+@click.option('--verbose', '-v', is_flag=True, default=False,
+              help='Be verbose! (default false)')
 @click.pass_context
 def cli(ctx, verifier_ip, client, port, unlock, verbose, json):
     global VERBOSE
@@ -90,9 +97,11 @@ def cli(ctx, verifier_ip, client, port, unlock, verbose, json):
 def version(ctx):
     """Print version"""
     if ctx.obj['json']:
-        print(json.dumps({"version": __version__, "private_dir": get_private_dir}))
+        print(json.dumps({"version": __version__,
+                          "private_dir": get_private_dir}))
     else:
-        print(f"Nyzocli version {__version__} - Your private dir is {get_private_dir()}")
+        print(f"Nyzocli version {__version__} - "
+              f"Your private dir is {get_private_dir()}")
 
 
 @cli.command()
@@ -123,7 +132,8 @@ def block(ctx, block_number):
     if VERBOSE:
         app_log.info(f"Connected to {ctx.obj['verifier_ip']}:9444")
         app_log.info(f"block {block_number}")
-    req = BlockRequest(start_height=block_number, end_height=block_number, include_balance_list=False, app_log=app_log)
+    req = BlockRequest(start_height=block_number, end_height=block_number,
+                       include_balance_list=False, app_log=app_log)
     message = Message(MessageType.BlockRequest11, req, app_log=app_log)
     res = ctx.obj['verifier_connection'].fetch(message)
     print(res.to_json())
@@ -159,7 +169,8 @@ def balance(ctx, address):
 
     reconnect(ctx)
 
-    req = BlockRequest(start_height=frozen, end_height=frozen, include_balance_list=True, app_log=app_log)
+    req = BlockRequest(start_height=frozen, end_height=frozen,
+                       include_balance_list=True, app_log=app_log)
     message2 = Message(MessageType.BlockRequest11, req, app_log=app_log)
     res = ctx.obj['verifier_connection'].fetch(message2)
     # Wow, this is quite heavy. move some logic the pynyzo
@@ -168,7 +179,8 @@ def balance(ctx, address):
     for item in res.get_initial_balance_list().get_items():
         if item.get_identifier() == bin_address:
             if ctx.obj['json']:
-                print(json.dumps({"block": frozen, "balance":item.get_balance(), "blocks_until_fee": item.get_blocks_until_fee(),
+                print(json.dumps({"block": frozen, "balance":item.get_balance(),
+                                  "blocks_until_fee": item.get_blocks_until_fee(),
                                   "address": address}))
             else:
                 print(f"At block: {frozen}")
@@ -178,7 +190,8 @@ def balance(ctx, address):
 
     # Address Not found
     if ctx.obj['json']:
-        print(json.dumps({"block": frozen, "balance": 0, "blocks_until_fee": None, "address": address}))
+        print(json.dumps({"block": frozen, "balance": 0,
+                          "blocks_until_fee": None, "address": address}))
     else:
         print(f"At block: {frozen}")
         print(f"Your Balance is: N/A")
@@ -201,24 +214,59 @@ def status(ctx):
     # print(json.dumps(status))
 
 
+def get_frozen(ctx):
+    """Helper to fetch frozen edge from a client"""
+    url = "{}/frozenEdge".format(ctx.obj['client'])
+    if VERBOSE:
+        app_log.info(f"Calling {url}")
+    res = get(url)
+    if VERBOSE:
+        app_log.info(res)
+    if path.isdir("tmp"):
+        # Store for debug purposes
+        with open("tmp/answer.txt", "w") as fp:
+            fp.write(res.text)
+    data = fake_table_frozen_to_dict(res.text)
+    return data
+
+
+@cli.command()
+@click.pass_context
+def frozen(ctx):
+    """Get frozen edge from client"""
+    frozen = get_frozen(ctx)
+    if ctx.obj['json']:
+        print(json.dumps(frozen))
+    else:
+        for key in frozen:
+            print(f"{key}: {frozen[key]}")
+
 @cli.command()
 @click.pass_context
 @click.argument('recipient', type=str)
 @click.argument('amount', default=0, type=float)
 @click.argument('above', default=0, type=float)
-def send(ctx, recipient, amount: float=0, above: float=0):
+@click.argument('data', default='', type=str)
+@click.argument('key_', default="", type=str)    # key_ to vote with
+def send(ctx, recipient, amount: float=0, above: float=0, data: str="", key_: str=""):
     """
     Send Nyzo to a RECIPIENT.
-    OPERATION is optional and should be empty for regular transactions.
     ABOVE is optional, if > 0 then the tx will only be sent when balance > ABOVE
+    If no seed is given, use the wallet one.
+    - ex: python3 Nyzocli.py send abd7fede35a84b10-8a36e6dc361d9b32-ca84d149f6eb85b4-a4e63015278d4c9f 10
+    - ex: python3 Nyzocli.py send abd7fede35a84b10-8a36e6dc361d9b32-ca84d149f6eb85b4-a4e63015278d4c9f 10 0 key_...
     """
+    if key_ == "":
+        seed = config.PRIVATE_KEY.to_bytes()
+    else:
+        seed = NyzoStringEncoder.decode(key_).get_bytes()
+    # convert key to address
+    address = KeyUtil.private_to_public(seed.hex())
 
-    # check_address(recipient)
-    # load_keys(ctx)
-    # connect(ctx)
-    # con = ctx.obj['connection']
-    """
     if above > 0:
+        connect(ctx, ctx.obj['verifier_ip'])
+        con = ctx.obj['connection']
+        ctx.obj['address'] = address
         my_balance = float(con.command('balanceget', [ctx.obj['address']])[0])
         if my_balance <= above:
             if VERBOSE:
@@ -226,8 +274,88 @@ def send(ctx, recipient, amount: float=0, above: float=0):
             print(json.dumps({"result": "Error", "reason": "Balance too low, {} instead of required {}"
                              .format(my_balance, above)}))
             return
+
+    # convert recipient to id if provided as rawbytes
+    try:
+        recipient_raw = NyzoStringEncoder.decode(recipient).get_bytes()
+        if VERBOSE:
+            print(f"Raw recipient is {recipient_raw.hex()}")
+    except:
+        # TODO: have a generic helper to convert and normalize addresses (also to be used for balance)
+        if VERBOSE:
+            print(f"Recipient was not a proper id_ nyzostring")
+        recipient_raw = re.sub(r"[^0-9a-f]", "", recipient.lower())
+        print(recipient_raw)
+        if len(recipient_raw) != 64:
+            raise ValueError("Wrong recipient format. 64 bytes as hex or id_ nyzostring required")
+        if VERBOSE:
+            print(f"Trying with {recipient_raw}")
+        recipient = NyzoStringEncoder.encode(NyzoStringPublicIdentifier.from_hex(recipient_raw))
+    # Here we should have both recipient and recipient_raw in all cases.
+    frozen = get_frozen(ctx)
+    if VERBOSE:
+        app_log.info(f"Sending {amount} to {recipient} since balance of {address} is > {above}.")
+        app_log.info(f"Frozen edge is at {frozen['height']}")
+
+    # Create a tx
+    timestamp = int(time()*10)*100 + 10000  # Fixed 10 sec delay for inclusion
+    # print(timestamp, hex(timestamp))
+    data_bytes = data[:32].encode("utf-8")
+    transaction = Transaction(buffer=None, type=Transaction.type_standard, timestamp=timestamp,
+                              sender_identifier=bytes.fromhex(address), amount=int(amount*1e6),
+                              receiver_identifier=bytes.fromhex(recipient_raw),
+                              previous_block_hash=bytes.fromhex(frozen["hash"]),
+                              previous_hash_height=frozen['height'],
+                              signature=b'', sender_data=data_bytes)
+    # transaction = Transaction.from_vote_data(timestamp, bytes.fromhex(address), vote, cycle_tx_sig_bytes)
+    print(transaction.to_json())
+
+    key, _ = KeyUtil.get_from_private_seed(seed.hex())
+    # print("key", key.to_bytes().hex())
+    to_sign = transaction.get_bytes(for_signing=True)
+    # print("To Sign", to_sign.hex())
+    # 02
+    # 000001767a954510
+    # 00000000000f4240
+    # abd7fede35a84b108a36e6dc361d9b32ca84d149f6eb85b4a4e63015278d4c9f
+    # 5a27d96a251e71f9e5fb2c14a76c8a43575f7705d50088b40c1e825cda2dd0b9
+    # a9adad21e06aadeac7b0e09a66279b733c9d80fde7ed79b3994c31eb18129b0b
+    # 5df6e0e2761359d30a8275058e299fcc0381534545f55cf43e41983f5d4c9456
+    sign = KeyUtil.sign_bytes(to_sign, key)
+    # print("Sign", sign.hex())
+
+    """"    
+        tx_type: int,
+        timestamp: int,
+        amount: int,
+        receiver_identifier: bytes,
+        
+        previous_hash_height: int,
+        previous_block_hash: bytes,
+        sender_identifier: bytes,
+        sender_data: bytes,
+        signature: bytes,
+        vote: int = 0,
+        transaction_signature: bytes = b''
     """
-    return "WIP - Soon!"
+    tx = NyzoStringTransaction(Transaction.type_standard, timestamp, int(amount*1e6), bytes.fromhex(recipient_raw),
+                               frozen['height'],
+                               bytes.fromhex(frozen["hash"]),
+                               bytes.fromhex(address), data_bytes,
+                               sign)
+    tx__ = NyzoStringEncoder.encode(tx)
+    # Send the tx
+    url = "{}/forwardTransaction?transaction={}&action=run".format(ctx.obj['client'], tx__)
+    if VERBOSE:
+        app_log.info(f"Calling {url}")
+    res = get(url)
+    if VERBOSE:
+        app_log.info(res)
+    if path.isdir("tmp"):
+        # Store for debug purposes
+        with open("tmp/answer.txt", "w") as fp:
+            fp.write(res.text)
+    print(json.dumps(fake_table_to_list(res.text)))
 
 
 @cli.command()
@@ -273,7 +401,8 @@ def vote(ctx, cycle_tx_sig: str, vote: int=1, key_: str=""):
         # Store for debug purposes
         with open("tmp/answer.txt", "w") as fp:
             fp.write(res.text)
-    print(fake_table_to_json(res.text))
+    print(json.dumps(fake_table_to_list(res.text)))
+
 
 """
 @cli.command()

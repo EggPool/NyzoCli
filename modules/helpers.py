@@ -44,12 +44,17 @@ def extract_status_lines(status: list, key:str) -> list:
             return value.split(' ')
 
 
-def fake_table_to_json(html: str):
+def fake_table_to_list(html: str):
+    #
     test_header = re.search(r'<div class="header-row">([^"]*)</div><div class="data-row">', html)
     headers = []
     if test_header:
         headers = test_header.groups()[0].replace('<div>', '').split("</div>")[:-1]  # closing /div
     test_content = re.search(r'<div class="data-row">(.*)</div></div></div>', html)
+    try:
+        error_content = re.search(r'<p class="error">(.*)</p>', html).groups()[0]
+    except Exception:
+        error_content = None
     values = []
     if test_content:
         content = test_content.groups()[0].replace('<div>', '')\
@@ -60,4 +65,29 @@ def fake_table_to_json(html: str):
             part = content[0:len(headers)]
             content = content[len(headers)+1:]
             values.append(dict(zip(headers, part)))
+    if error_content:
+        values.append({"error": error_content})
+    return values
+
+
+def fake_table_frozen_to_dict(html: str):
+    """Neither clean nor future proof, but that's the way client sends back the data"""
+    try:
+        height = re.search(r'<div>height</div><div>([^<]*)</div>', html).groups()[0]
+    except Exception:
+        height = 0
+    try:
+        hash = re.search(r'<div>hash</div><div[^>]*>([^<]*)</div>', html).groups()[0]
+    except Exception:
+        hash = b''
+    try:
+        timestamp = re.search(r'<div>verification timestamp \(ms\)</div><div>([^<]*)</div>', html).groups()[0]
+    except Exception:
+        timestamp = 0
+    try:
+        distance = re.search(r'<div>distance from open edge</div><div>([^<]*)</div>', html).groups()[0]
+    except Exception:
+        distance = 0
+    values = {"height": int(height), "hash": hash.replace('-', ''),
+              "timestamp": timestamp, "distance": distance}
     return values

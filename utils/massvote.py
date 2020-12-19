@@ -1,3 +1,4 @@
+#!/usr/bin/env python3
 """
 Mass voter helper
 
@@ -21,8 +22,8 @@ For ncfp3, you can get and rename the ncfp3-sigs.txt from open nyzo github to vo
 
 # You can adjust here to your liking. wait will be random between these two.
 # these are seconds.
-MIN_WAIT_BETWEEN_VOTE = 20
-MAX_WAIT_BETWEEN_VOTE = 120
+MIN_WAIT_BETWEEN_VOTE = 7
+MAX_WAIT_BETWEEN_VOTE = 10
 
 # Set to False if you don't want to query nyzo.today for existing votes.
 # Does not give any info about your verifiers, just asks the list of votes for a given sig_
@@ -53,10 +54,10 @@ VOTED = {}
 
 if __name__ == '__main__':
     if not path.isfile("keys.txt"):
-        print("missing keys.Txt file")
+        print("missing keys.txt file")
         exit()
     if not path.isfile("sigs.txt"):
-        print("missing sigs.Txt file")
+        print("missing sigs.txt file")
         exit()
     with open("keys.txt") as fp:
         keys = fp.readlines()

@@ -5,7 +5,10 @@ Uses the pynyzo client package https://github.com/EggPool/pynyzo
 
 ## Prerequisites
 
-Python3.6+
+Python3.6+  
+Depending on your setup, you may need the following:  
+`sudo apt install build-essential`  
+`sudo apt-get install python3-dev`
 
 ## Installation
 
@@ -203,27 +206,75 @@ That way, you can re-run the script after a first pass to check and re-submit mi
 You can deactivate that feature.
 
 
-## Not working yet :
+## New in 0.0.6:
 
-Send a tip to Nyzocli dev:  
+### Send regular tx, with optional data and any key
+
+Ex: Send a tip to Nyzocli dev, using local account:    
 `./Nyzocli.py send abd7fede35a84b10-8a36e6dc361d9b32-ca84d149f6eb85b4-a4e63015278d4c9f 10`
 
+or with recipient id_ :  
+`./Nyzocli.py send id__8aMo_KWTH4JgzAsDV3puDRbayd59.LL5KajDc1kEAkQw84KHcKwc 10`
 
-Send 100 NYZO **only** if the balance is > 200 NYZO;  
-`./Nyzocli.py send abd7fede35a84b10-8a36e6dc361d9b32-ca84d149f6eb85b4-a4e63015278d4c9f 100 200`  
+
+Send 10 NYZO **only** if the balance is > 200 NYZO:  
+`./Nyzocli.py send abd7fede35a84b10-8a36e6dc361d9b32-ca84d149f6eb85b4-a4e63015278d4c9f 10 200`  
+
+or with a specific key (sender):    
+`./Nyzocli.py send id__8aMo_KWTH4JgzAsDV3puDRbayd59.LL5KajDc1kEAkQw84KHcKwc 10 0 '' key_....`  
+Note: in that precise case you HAVE to specify the "above" condition as 0, data as empty '' then only the key_... 
+
+### Get current frozen edge from a client
+(default is client.nyzo.co)
+
+`./Nyzocli.py frozen`
+```
+height: 10228622
+hash: 018f197a54452589fff7783e8a3f745272cb6716b7f01431a898061486a6d4d2
+timestamp: 1608397162591
+distance: 1
+```
+
+or as json: 
+`./Nyzocli.py --json frozen`  
+
+```
+{"height": 10228594, 
+ "hash": "513f156b8ba4cac0a5feb14715aa689571cc1eb9d16711cb2919800496343c5d", 
+ "timestamp": 1608397162091, 
+ "distance": "1"
+}`
+``` 
 
 
 ## Tip Jar
 
 Show your appreciation, send a few coffees or pizzas to the devs:  
-`abd7fede35a84b10-8a36e6dc361d9b32-ca84d149f6eb85b4-a4e63015278d4c9f`
+`abd7fede35a84b10-8a36e6dc361d9b32-ca84d149f6eb85b4-a4e63015278d4c9f`  
+or
+`id__8aMo_KWTH4JgzAsDV3puDRbayd59.LL5KajDc1kEAkQw84KHcKwc`
 
 
 ## Known twerks
 
 Still some debug or trace messages left over from the pynyzo package to be cleaned up later on.
 
+## Short term roadmap
+
+- Move from using a verifier to using a nyzo client by default (balance)
+- Fine tune commands and options
+- Generalize autodetection of address format between raw bytes and nyzostrings.
+- Add conversion utils from/to Nyzo strings
+
+## Mid term roadmap
+
+- Add support for Nyzo tokens
+- Easier installation, Windows pre-compiled releases
+
+
 ## Releases
+
+* 0.0.6 - Get frozen edge, Send regular TX.
 
 * 0.0.5 - Randomized Massvote and omitting of existing votes with help from nyzo.today API.
 
