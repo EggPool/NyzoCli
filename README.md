@@ -178,7 +178,7 @@ Sample answer:
 
 ```
 
-## Utils
+## Utils
 
 see utils dir
 
@@ -261,14 +261,14 @@ or
 
 Still some debug or trace messages left over from the pynyzo package to be cleaned up later on.
 
-## Short term roadmap
+## Short term roadmap
 
 - Move from using a verifier to using a nyzo client by default (balance)
 - Fine tune commands and options
 - Generalize autodetection of address format between raw bytes and nyzostrings.
 - Add conversion utils from/to Nyzo strings
 
-## Mid term roadmap
+## Mid term roadmap
 
 - Add support for Nyzo tokens
 - Easier installation, Windows pre-compiled releases
