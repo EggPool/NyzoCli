@@ -226,6 +226,11 @@ or with a specific key (sender):
 `./Nyzocli.py send id__8aMo_KWTH4JgzAsDV3puDRbayd59.LL5KajDc1kEAkQw84KHcKwc 10 0 '' key_....`  
 Note: in that precise case you HAVE to specify the "above" condition as 0, data as empty '' then only the key_... 
 
+Full command `[]` denote an optional field, that has to be filled if there is another field following
+
+`./Nyzocli.py send recipient amount [above_condition] [data] [key_...]`    
+So to use the "data" field you have to specify a "above" param (0 to send without condition)
+
 ### Get current frozen edge from a client
 (default is client.nyzo.co)
 
@@ -267,6 +272,7 @@ Still some debug or trace messages left over from the pynyzo package to be clean
 - Fine tune commands and options
 - Generalize autodetection of address format between raw bytes and nyzostrings.
 - Add conversion utils from/to Nyzo strings
+- allow to send full balance (empty wallet)
 
 ## Mid term roadmap
 
