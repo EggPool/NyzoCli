@@ -1,3 +1,5 @@
+setuptools
+wheel
 click
 requests
 pynyzo >= 0.0.9
