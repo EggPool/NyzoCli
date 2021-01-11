@@ -261,11 +261,15 @@ Full command `[]` denote an optional field, that has to be filled if there is an
 `./Nyzocli.py send recipient amount [above_condition] [data] [key_...]`    
 So to use the "data" field you have to specify a "above" param (0 to send without condition)
 
-**From 0.0.7**, You can send the full balance by using "-1" as amount
+## New since 0.0.7:
+You can send the full balance by using "-1" as amount.  
 Ex: Send whole balance:   
-`./Nyzocli.py send abd7fede35a84b10-8a36e6dc361d9b32-ca84d149f6eb85b4-a4e63015278d4c9f -1`
+`./Nyzocli.py send -- abd7fede35a84b10-8a36e6dc361d9b32-ca84d149f6eb85b4-a4e63015278d4c9f -1`
 
-**Note**: This will empty the account and remove it from the nyzo balances list. The address will be unusable until it gets at leat a n10 deposit.
+**Note:** In order to differentiate options (like -v) from arguments (like -1 amount), you need to use `--` (two dashes) to consider all further elements as arguments and not options.   
+Any required option then goes *before* the `--`.
+
+**Note:** This will empty the account and remove it from the nyzo balances list. The address will be unusable until it gets at leat a n10 deposit.
 
 
 ### Get current frozen edge from a client
@@ -305,11 +309,11 @@ Still some debug or trace messages left over from the pynyzo package to be clean
 
 ## Short term roadmap
 
-- Move from using a verifier to using a nyzo client by default (balance)
+Done - Move from using a verifier to using a nyzo client by default (balance)
 - Fine tune commands and options
-- Generalize autodetection of address format between raw bytes and nyzostrings.
+Done (partially?) - Generalize autodetection of address format between raw bytes and nyzostrings.
 - Add conversion utils from/to Nyzo strings
-- allow to send full balance (empty wallet)
+Done - allow to send full balance (empty wallet)
 
 ## Mid term roadmap
 
@@ -318,6 +322,8 @@ Still some debug or trace messages left over from the pynyzo package to be clean
 
 
 ## Releases
+
+* 0.0.8 - Bugfix and proper doc for send full balance.
 
 * 0.0.7 - Allow use of id__ or raw wallet id with auto detection.  
 Get balance from client(balance) or verifier (vbalance), Send whole balance.  

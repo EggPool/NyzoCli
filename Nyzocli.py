@@ -12,7 +12,7 @@ import logging
 import sys
 from os import path
 from time import time
-from typing import Tuple
+from typing import Tuple, Union
 
 import click
 import re
@@ -35,7 +35,7 @@ from pynyzo.messages.blockrequest import BlockRequest
 from pynyzo.messagetype import MessageType
 from pynyzo.transaction import Transaction
 
-__version__ = '0.0.7'
+__version__ = '0.0.8'
 
 
 VERBOSE = False
@@ -291,14 +291,14 @@ def frozen(ctx):
             print(f"{key}: {frozen[key]}")
 
 
-def normalize_address(address: str, asHex: bool=False) -> Tuple[str, str]:
+def normalize_address(address: str, asHex: bool=False) -> Union[Tuple[str, str], Tuple[str, bytes]]:
     """Takes an address as raw byte or id__ and provides both formats back"""
     try:
         # convert recipient to raw if provided as id__
         if address.startswith("id__"):
-            address_raw = NyzoStringEncoder.decode(address).get_bytes()
+            address_raw = NyzoStringEncoder.decode(address).get_bytes().hex()
             if VERBOSE:
-                print(f"Raw address is {address_raw.hex()}")
+                print(f"Raw address is {address_raw}")
         else:
             raise RuntimeWarning("Not an id__")
     except:
@@ -313,9 +313,9 @@ def normalize_address(address: str, asHex: bool=False) -> Tuple[str, str]:
         address = NyzoStringEncoder.encode(NyzoStringPublicIdentifier.from_hex(address_raw))
     # Here we should have both recipient and recipient_raw in all cases.
     if asHex:
-        return address, address_raw.hex()
-    else:
         return address, address_raw
+    else:
+        return address, bytes.fromhex(address_raw)
 
 
 @cli.command()
@@ -343,7 +343,8 @@ def send(ctx, recipient, amount: float=0, above: float=0, data: str="", key_: st
 
     my_balance = None
     if above > 0:
-        my_balance = balance(ctx, address)
+        my_balance = ctx.invoke(balance, address=address)
+        # my_balance = balance(ctx, address)
         """connect(ctx, ctx.obj['verifier_ip'])
         con = ctx.obj['connection']
         ctx.obj['address'] = address
@@ -357,7 +358,9 @@ def send(ctx, recipient, amount: float=0, above: float=0, data: str="", key_: st
             return
     if amount == -1:
         if my_balance is None:
-            my_balance = balance(ctx, address)
+            my_balance = ctx.invoke(balance, address=address)
+            print(my_balance)
+            #my_balance = balance(ctx, address)
         amount = my_balance
         if amount <= 0:
             if VERBOSE:
@@ -369,7 +372,7 @@ def send(ctx, recipient, amount: float=0, above: float=0, data: str="", key_: st
             if VERBOSE:
                 app_log.warning("Sending full balance {}.".format(my_balance))
 
-    recipient, recipient_raw = normalize_address(recipient)
+    recipient, recipient_raw = normalize_address(recipient, asHex=True)
     frozen = get_frozen(ctx)
     if VERBOSE:
         app_log.info(f"Sending {amount} to {recipient} since balance of {address} is > {above}.")
