@@ -12,6 +12,7 @@ import logging
 import sys
 from os import path
 from time import time
+from typing import Tuple
 
 import click
 import re
@@ -34,7 +35,7 @@ from pynyzo.messages.blockrequest import BlockRequest
 from pynyzo.messagetype import MessageType
 from pynyzo.transaction import Transaction
 
-__version__ = '0.0.6'
+__version__ = '0.0.7'
 
 
 VERBOSE = False
@@ -107,7 +108,7 @@ def version(ctx):
 @cli.command()
 @click.pass_context
 def info(ctx):
-    """Print version"""
+    """Print version and more info"""
     if ctx.obj['json']:
         print(json.dumps({"version": __version__,
                           "private_dir": get_private_dir(),
@@ -143,17 +144,65 @@ def block(ctx, block_number):
 @click.pass_context
 @click.argument('address', default='', type=str)
 def balance(ctx, address):
-    """Get balance of an ADDRESS (Uses the one from localhost by default)
-    Question: ask from verifier or from Client? Two commands?
-    Client by default would make more sense (available with no need for a verifier)
+    """Get balance of an ADDRESS from nyzo client
+    """
+    if address == '':
+        address = config.PUBLIC_KEY.to_bytes().hex()
+    else:
+        address = address.replace('-', '')
+    id__address, address = normalize_address(address, asHex=True)
+    if VERBOSE:
+        app_log.info(f"Get balance for address {address}")
+    assert(len(address) == 64)  # TODO: better user warning
+
+    url = "{}/balance?walletId={}&action=run".format(ctx.obj['client'], address)
+    if VERBOSE:
+        app_log.info(f"Calling {url}")
+    res = get(url)
+    if VERBOSE:
+        app_log.info(res)
+    if path.isdir("tmp"):
+        # Store for debug purposes
+        with open("tmp/answer.txt", "w") as fp:
+            fp.write(res.text)
+    # print(json.dumps(fake_table_to_list(res.text)))
+    try:
+        data = list(fake_table_to_list(res.text))[0]
+        balance = data["balance"].replace("\u2229", "")
+        if ctx.obj['json']:
+            print(json.dumps({"block": data["block height"], "balance": balance,
+                              "address": address,
+                              "id__": id__address}))
+        else:
+            print(f"At block: {data['block height']}")
+            print(f"Your Balance is: {balance}")
+        return float(balance)
+    except:
+        data = {}
+        if ctx.obj['json']:
+            print(json.dumps({"block": "N/A", "balance": 0,
+                              "address": address, "id__": id__address}))
+        else:
+            print(f"At block: N/A")
+            print(f"Your Balance is: N/A")
+        return 0
+
+
+@cli.command()
+@click.pass_context
+@click.argument('address', default='', type=str)
+def vbalance(ctx, address):
+    """Get balance of an ADDRESS from a verifier (Uses the one from localhost by default)
     """
     connect(ctx, ctx.obj['verifier_ip'])
     if address == '':
         address = config.PUBLIC_KEY.to_bytes().hex()
     else:
         address = address.replace('-', '')
+        id__address, address = normalize_address(address, asHex=True)
+
     if VERBOSE:
-        app_log.info(f"Get balance for address {address}")
+        app_log.info(f"Get vbalance for address {address}")
     assert(len(address) == 64)  # TODO: better user warning
 
     if VERBOSE:
@@ -241,6 +290,34 @@ def frozen(ctx):
         for key in frozen:
             print(f"{key}: {frozen[key]}")
 
+
+def normalize_address(address: str, asHex: bool=False) -> Tuple[str, str]:
+    """Takes an address as raw byte or id__ and provides both formats back"""
+    try:
+        # convert recipient to raw if provided as id__
+        if address.startswith("id__"):
+            address_raw = NyzoStringEncoder.decode(address).get_bytes()
+            if VERBOSE:
+                print(f"Raw address is {address_raw.hex()}")
+        else:
+            raise RuntimeWarning("Not an id__")
+    except:
+        if VERBOSE:
+            print(f"address was not a proper id_ nyzostring")
+        address_raw = re.sub(r"[^0-9a-f]", "", address.lower())
+        # print(address_raw)
+        if len(address_raw) != 64:
+            raise ValueError("Wrong address format. 64 bytes as hex or id_ nyzostring required")
+        if VERBOSE:
+            print(f"Trying with {address_raw}")
+        address = NyzoStringEncoder.encode(NyzoStringPublicIdentifier.from_hex(address_raw))
+    # Here we should have both recipient and recipient_raw in all cases.
+    if asHex:
+        return address, address_raw.hex()
+    else:
+        return address, address_raw
+
+
 @cli.command()
 @click.pass_context
 @click.argument('recipient', type=str)
@@ -252,6 +329,7 @@ def send(ctx, recipient, amount: float=0, above: float=0, data: str="", key_: st
     """
     Send Nyzo to a RECIPIENT.
     ABOVE is optional, if > 0 then the tx will only be sent when balance > ABOVE
+    Using -1 as amount will send the FULL balance of the address
     If no seed is given, use the wallet one.
     - ex: python3 Nyzocli.py send abd7fede35a84b10-8a36e6dc361d9b32-ca84d149f6eb85b4-a4e63015278d4c9f 10
     - ex: python3 Nyzocli.py send abd7fede35a84b10-8a36e6dc361d9b32-ca84d149f6eb85b4-a4e63015278d4c9f 10 0 key_...
@@ -263,35 +341,35 @@ def send(ctx, recipient, amount: float=0, above: float=0, data: str="", key_: st
     # convert key to address
     address = KeyUtil.private_to_public(seed.hex())
 
+    my_balance = None
     if above > 0:
-        connect(ctx, ctx.obj['verifier_ip'])
+        my_balance = balance(ctx, address)
+        """connect(ctx, ctx.obj['verifier_ip'])
         con = ctx.obj['connection']
         ctx.obj['address'] = address
         my_balance = float(con.command('balanceget', [ctx.obj['address']])[0])
+        """
         if my_balance <= above:
             if VERBOSE:
                 app_log.warning("Balance too low, {} instead of required {}, dropping.".format(my_balance, above))
             print(json.dumps({"result": "Error", "reason": "Balance too low, {} instead of required {}"
                              .format(my_balance, above)}))
             return
+    if amount == -1:
+        if my_balance is None:
+            my_balance = balance(ctx, address)
+        amount = my_balance
+        if amount <= 0:
+            if VERBOSE:
+                app_log.warning("Balance too low or unknown {}, dropping.".format(my_balance))
+            print(json.dumps({"result": "Error", "reason": "Balance too low, {}"
+                             .format(my_balance)}))
+            return
+        else:
+            if VERBOSE:
+                app_log.warning("Sending full balance {}.".format(my_balance))
 
-    # convert recipient to id if provided as rawbytes
-    try:
-        recipient_raw = NyzoStringEncoder.decode(recipient).get_bytes()
-        if VERBOSE:
-            print(f"Raw recipient is {recipient_raw.hex()}")
-    except:
-        # TODO: have a generic helper to convert and normalize addresses (also to be used for balance)
-        if VERBOSE:
-            print(f"Recipient was not a proper id_ nyzostring")
-        recipient_raw = re.sub(r"[^0-9a-f]", "", recipient.lower())
-        print(recipient_raw)
-        if len(recipient_raw) != 64:
-            raise ValueError("Wrong recipient format. 64 bytes as hex or id_ nyzostring required")
-        if VERBOSE:
-            print(f"Trying with {recipient_raw}")
-        recipient = NyzoStringEncoder.encode(NyzoStringPublicIdentifier.from_hex(recipient_raw))
-    # Here we should have both recipient and recipient_raw in all cases.
+    recipient, recipient_raw = normalize_address(recipient)
     frozen = get_frozen(ctx)
     if VERBOSE:
         app_log.info(f"Sending {amount} to {recipient} since balance of {address} is > {above}.")
@@ -308,7 +386,8 @@ def send(ctx, recipient, amount: float=0, above: float=0, data: str="", key_: st
                               previous_hash_height=frozen['height'],
                               signature=b'', sender_data=data_bytes)
     # transaction = Transaction.from_vote_data(timestamp, bytes.fromhex(address), vote, cycle_tx_sig_bytes)
-    print(transaction.to_json())
+    if VERBOSE:
+        print(transaction.to_json())
 
     key, _ = KeyUtil.get_from_private_seed(seed.hex())
     # print("key", key.to_bytes().hex())

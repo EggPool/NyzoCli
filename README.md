@@ -48,13 +48,13 @@ Your public address is abd7fede-35a84b10-8a36e6dc-361d9b32-ca84d149-f6eb85b4-a4e
 Default host is 127.0.0.1 on port 9444
 ```
 
-### Get your balance:
+### Get your balance (from verifier):
 
 Get balance from the given verifier (defaults to localhost)
   
-`./Nyzocli.py balance`  
-`./Nyzocli.py balance address`    
-`./Nyzocli.py -i ip.of.verifier.toask balance address `
+`./Nyzocli.py vbalance`  
+`./Nyzocli.py vbalance address`    
+`./Nyzocli.py -i ip.of.verifier.toask vbalance address `
 
 ```
 At block: 1696064
@@ -64,7 +64,7 @@ Blocks until fee: 157
 
 or as json:
 
-`./Nyzocli.py --json balance`
+`./Nyzocli.py --json vbalance`
 
 ```
 {
@@ -77,7 +77,37 @@ or as json:
 
 You can query a specific verifier (default is 127.0.0.1) - use yours only or you'll likely be blacklisted.
 
-`./Nyzocli.py -i verifier0.nyzo.co balance abd7fede35a84b10-8a36e6dc361d9b32-ca84d149f6eb85b4-a4e63015278d4c9f `
+`./Nyzocli.py -i verifier0.nyzo.co vbalance abd7fede35a84b10-8a36e6dc361d9b32-ca84d149f6eb85b4-a4e63015278d4c9f `
+
+
+### Get your balance (from client):
+
+Get balance from a nyzo client (defaults to client.nyzo.co)
+  
+`./Nyzocli.py balance`  
+`./Nyzocli.py balance address`    
+
+```
+At block: 1696064
+Your Balance is: 219.449753
+```
+
+or as json:
+
+`./Nyzocli.py --json balance`
+
+```
+{
+  "block": 1696070, 
+  "balance": 219449753, 
+  "address": "abd7fede35a84b108a36e6dc361d9b32ca84d149f6eb85b4a4e63015278d4c9f",
+  "id_address": "id__8aMo_KWTH4JgzAsDV3puDRbayd59.LL5KajDc1kEAkQw84KHcKwc"
+}
+```
+
+You can query a specific client (default is client.nyzo.co) 
+
+`./Nyzocli.py -c client.nyzo.co balance abd7fede35a84b10-8a36e6dc361d9b32-ca84d149f6eb85b4-a4e63015278d4c9f `
 
 
 ### Get a node status
@@ -231,6 +261,13 @@ Full command `[]` denote an optional field, that has to be filled if there is an
 `./Nyzocli.py send recipient amount [above_condition] [data] [key_...]`    
 So to use the "data" field you have to specify a "above" param (0 to send without condition)
 
+**From 0.0.7**, You can send the full balance by using "-1" as amount
+Ex: Send whole balance:   
+`./Nyzocli.py send abd7fede35a84b10-8a36e6dc361d9b32-ca84d149f6eb85b4-a4e63015278d4c9f -1`
+
+**Note**: This will empty the account and remove it from the nyzo balances list. The address will be unusable until it gets at leat a n10 deposit.
+
+
 ### Get current frozen edge from a client
 (default is client.nyzo.co)
 
@@ -281,6 +318,10 @@ Still some debug or trace messages left over from the pynyzo package to be clean
 
 
 ## Releases
+
+* 0.0.7 - Allow use of id__ or raw wallet id with auto detection.  
+Get balance from client(balance) or verifier (vbalance), Send whole balance.  
+*Note:* sending whole balance removes the address from the system, the address will then need 10n min to be used again.
 
 * 0.0.6 - Get frozen edge, Send regular TX.
 
