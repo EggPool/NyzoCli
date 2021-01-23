@@ -18,7 +18,7 @@ import click
 import re
 from nyzostrings.nyzostringencoder import NyzoStringEncoder
 # from nyzostrings.nyzostringsignature import NyzoStringSignature
-# from nyzostrings.nyzostringprivateseed import NyzoStringPrivateSeed
+from nyzostrings.nyzostringprivateseed import NyzoStringPrivateSeed
 from nyzostrings.nyzostringtransaction import NyzoStringTransaction
 from nyzostrings.nyzostringpublicidentifier import NyzoStringPublicIdentifier
 from requests import get
@@ -34,13 +34,17 @@ from pynyzo.messageobject import EmptyMessageObject
 from pynyzo.messages.blockrequest import BlockRequest
 from pynyzo.messagetype import MessageType
 from pynyzo.transaction import Transaction
+from pynyzo.clienthelpers import NyzoClient
 
-__version__ = '0.0.8'
+
+__version__ = '0.0.9'
 
 
 VERBOSE = False
 app_log = False
 
+CYCLE_ADDRESS_HEX = "0000000000000000000000000000000000000000000000000000000000000002"
+# CYCLE_ADDRESS_HEX = "a49138f27485cae4096c3eb72f9425943fe4b6f346d0fc76ef40084ec767365d"  # Debug
 
 def connect(ctx, verifier_ip):
     """Tries to connect to the peer, depending on the context."""
@@ -69,6 +73,8 @@ def reconnect(ctx):
               help='Set a specific verifier ip (default=localhost)')
 @click.option('--client', '-c', default="https://client.nyzo.co",
               help='Set a specific client (default=https://client.nyzo.co)')
+@click.option('--token', '-t', default="https://tokens.nyzo.today/api",
+              help='Set a specific token API (default=https://tokens.nyzo.today/api)')
 @click.option('--port', '-p', default=80, help='Client port (default 80)')
 @click.option('--unlock', '-U', default="", help='Wallet Unlock code')
 @click.option('--json', '-j', is_flag=True, default=False,
@@ -76,12 +82,13 @@ def reconnect(ctx):
 @click.option('--verbose', '-v', is_flag=True, default=False,
               help='Be verbose! (default false)')
 @click.pass_context
-def cli(ctx, verifier_ip, client, port, unlock, verbose, json):
+def cli(ctx, verifier_ip, client, token, port, unlock, verbose, json):
     global VERBOSE
     # ctx.obj['host'] = host
     # ctx.obj['port'] = port
     ctx.obj['verifier_ip'] = verifier_ip
     ctx.obj['client'] = client
+    ctx.obj['token'] = token
     ctx.obj['port'] = port
     ctx.obj['unlock'] = unlock
     ctx.obj['json'] = json
@@ -265,6 +272,7 @@ def status(ctx):
 
 def get_frozen(ctx):
     """Helper to fetch frozen edge from a client"""
+    # TODO: Use newest helper from pynyzo
     url = "{}/frozenEdge".format(ctx.obj['client'])
     if VERBOSE:
         app_log.info(f"Calling {url}")
@@ -334,6 +342,7 @@ def send(ctx, recipient, amount: float=0, above: float=0, data: str="", key_: st
     - ex: python3 Nyzocli.py send abd7fede35a84b10-8a36e6dc361d9b32-ca84d149f6eb85b4-a4e63015278d4c9f 10
     - ex: python3 Nyzocli.py send abd7fede35a84b10-8a36e6dc361d9b32-ca84d149f6eb85b4-a4e63015278d4c9f 10 0 key_...
     """
+    # TODO: Use newest helper from pynyzo
     if key_ == "":
         seed = config.PRIVATE_KEY.to_bytes()
     else:
@@ -360,8 +369,8 @@ def send(ctx, recipient, amount: float=0, above: float=0, data: str="", key_: st
         if my_balance is None:
             my_balance = ctx.invoke(balance, address=address)
             print(my_balance)
-            #my_balance = balance(ctx, address)
-        amount = my_balance
+            # my_balance = balance(ctx, address)
+        amount = float(my_balance)
         if amount <= 0:
             if VERBOSE:
                 app_log.warning("Balance too low or unknown {}, dropping.".format(my_balance))
@@ -437,7 +446,14 @@ def send(ctx, recipient, amount: float=0, above: float=0, data: str="", key_: st
         # Store for debug purposes
         with open("tmp/answer.txt", "w") as fp:
             fp.write(res.text)
-    print(json.dumps(fake_table_to_list(res.text)))
+    temp = fake_table_to_list(res.text)
+    if ctx.obj['json']:
+        print(json.dumps(temp))
+    else:
+        if "error" in temp[-1]:
+            print("Error:", temp[-1]["error"])
+        else:
+            print("Ok")
 
 
 @cli.command()
@@ -457,6 +473,7 @@ def vote(ctx, cycle_tx_sig: str, vote: int=1, key_: str=""):
         seed = config.PRIVATE_KEY.to_bytes()
     else:
         seed = NyzoStringEncoder.decode(key_).get_bytes()
+    key, _ = KeyUtil.get_from_private_seed(seed.hex())
     # reconvert key to address
     address = KeyUtil.private_to_public(seed.hex())
     if VERBOSE:
@@ -468,7 +485,6 @@ def vote(ctx, cycle_tx_sig: str, vote: int=1, key_: str=""):
     cycle_transaction_signature_hex = cycle_tx_sig_bytes.hex()
     transaction = Transaction.from_vote_data(timestamp, bytes.fromhex(address), vote, cycle_tx_sig_bytes)
     print(transaction.to_json())
-    key, _ = KeyUtil.get_from_private_seed(seed.hex())
     sign = KeyUtil.sign_bytes(transaction.get_bytes(for_signing=True)[:106], key)
     tx = NyzoStringTransaction.from_hex_vote(hex(timestamp), address, sign.hex(), vote, cycle_transaction_signature_hex)
     tx__ = NyzoStringEncoder.encode(tx)
@@ -486,15 +502,246 @@ def vote(ctx, cycle_tx_sig: str, vote: int=1, key_: str=""):
     print(json.dumps(fake_table_to_list(res.text)))
 
 
-"""
-@cli.command()
+@cli.group()
 @click.pass_context
-def test(ctx):
-    with open("tmp/answer.txt") as fp:
-        res = fp.readline()
-    # print(res)
-    print(fake_table_to_json(res))
-"""
+def token(ctx):
+    pass
+
+
+@token.command("balance")
+@click.pass_context
+@click.argument('address',  default="", type=str)
+@click.argument('token_name',  default="", type=str)
+def token_balance(ctx, address: str="", token_name: str=""):
+    # ./Nyzocli.py token balance a49138f27485cae4096c3eb72f9425943fe4b6f346d0fc76ef40084ec767365d
+    # ./Nyzocli.py token balance a49138f27485cae4096c3eb72f9425943fe4b6f346d0fc76ef40084ec767365d TEST2
+    if address == '':
+        address = config.PUBLIC_KEY.to_bytes().hex()
+    else:
+        address = address.replace('-', '')
+    id__address, address = normalize_address(address, asHex=True)
+    url = f"{ctx.obj['token']}/balances/{address}"
+    res = get(url)
+    balances = res.json()
+    if token_name != "":
+        if ctx.obj['json']:
+            print(json.dumps({token_name: balances.get(token_name, '0')}))
+        else:
+            print(f"Balance of {address} for token {token_name} is {balances.get(token_name, '0')['amount']}.")
+    else:
+        if ctx.obj['json']:
+            print(json.dumps(balances))
+        else:
+            print(f"Balance of tokens for {address} is:")
+            for token in balances:
+                print(f" {token}: {balances[token]['amount']}")
+
+
+@token.command("issue")
+@click.pass_context
+@click.argument('token_name', type=str)
+@click.argument('decimals', type=int)
+@click.argument('supply', type=str)
+@click.argument('key_', default="", type=str)
+def token_issue(ctx, token_name: str, decimals: int, supply: str, key_: str=""):
+    # ./Nyzocli.py --verbose token issue -- TEST3 3 -1
+    if key_ == "":
+        seed = config.PRIVATE_KEY.to_bytes()
+        key_ = NyzoStringEncoder.encode(NyzoStringPrivateSeed.from_hex(seed.hex()))
+    else:
+        seed = NyzoStringEncoder.decode(key_).get_bytes()
+    key, pub = KeyUtil.get_from_private_seed(seed.hex())
+    address = pub.to_ascii(encoding="hex").decode('utf-8')
+    if decimals < 0:
+        raise ValueError("Decimals have to be >= 0")
+    if decimals > 18:
+        raise ValueError("Decimals have to be <= 18")
+    dec = str(decimals)
+    while len(dec) < 2:
+        dec = "0"+dec
+    if not re.match(r"[0-9A-Z_]{3,32}", token_name):
+        raise ValueError(f"Token name '{token_name}' does not follow rules")
+    if VERBOSE:
+        print(f"token issue {token_name} decimals {dec} supply {supply}")
+    data = f"TI:{token_name}:d{dec}:{supply}"
+    # get fees
+    url = f"{ctx.obj['token']}/fees"
+    res = get(url)
+    fees = res.json()
+    issue_fees = fees[-1]["issue_fees"]  # micro_nyzos
+    amount = issue_fees / 1000000
+    if VERBOSE:
+        print(f"Issue fees are {issue_fees} micro nyzos.")
+    # Test via API
+    recipient = CYCLE_ADDRESS_HEX
+    url = f"{ctx.obj['token']}/check_tx/{address}/{recipient}/{amount:0.6f}/{data}"
+    if VERBOSE:
+        print(url)
+    res = get(url).text
+    if VERBOSE:
+        print(res)
+    if "Error:" in res:
+        print(res)
+    else:
+        # Assemble, sign and forward if ok
+        client = NyzoClient(ctx.obj['client'])
+        res = client.send(recipient, amount, data, key_)
+        print(res)
+
+
+@token.command("mint")
+@click.pass_context
+@click.argument('token_name', type=str)
+@click.argument('amount', type=str)
+@click.argument('key_', default="", type=str)
+def token_mint(ctx, token_name: str, amount: str, key_: str=""):
+    # ./Nyzocli.py --verbose token mint TEST3 100
+    if key_ == "":
+        seed = config.PRIVATE_KEY.to_bytes()
+        key_ = NyzoStringEncoder.encode(NyzoStringPrivateSeed.from_hex(seed.hex()))
+    else:
+        seed = NyzoStringEncoder.decode(key_).get_bytes()
+    key, pub = KeyUtil.get_from_private_seed(seed.hex())
+    address = pub.to_ascii(encoding="hex").decode('utf-8')
+    if float(amount) <= 0:
+        raise ValueError("Amount has to be > 0")
+    if not re.match(r"[0-9A-Z_]{3,32}", token_name):
+        raise ValueError(f"Token name '{token_name}' does not follow rules")
+    if VERBOSE:
+        print(f"token mint {token_name} amount {amount}")
+    data = f"TM:{token_name}:{amount}"
+    url = f"{ctx.obj['token']}/fees"
+    # get fees
+    res = get(url)
+    fees = res.json()
+    mint_fees = fees[-1]["mint_fees"]  # micro_nyzos
+    fees = mint_fees / 1000000
+    if VERBOSE:
+        print(f"Issue fees are {mint_fees} micro nyzos.")
+    # Test via API
+    recipient = CYCLE_ADDRESS_HEX
+    url = f"{ctx.obj['token']}/check_tx/{address}/{recipient}/{fees:0.6f}/{data}"
+    if VERBOSE:
+        print(url)
+    res = get(url).text
+    if VERBOSE:
+        print(res)
+    if "Error:" in res:
+        print(res)
+    else:
+        # Assemble, sign and forward if ok
+        client = NyzoClient(ctx.obj['client'])
+        res = client.send(recipient, fees, data, key_)
+        print(res)
+
+
+@token.command("burn")
+@click.pass_context
+@click.argument('token_name', type=str)
+@click.argument('amount', type=str)
+@click.argument('key_', default="", type=str)
+def token_burn(ctx, token_name: str, amount: str, key_: str=""):
+    # ./Nyzocli.py --verbose token burn TEST3 1.12345
+    if key_ == "":
+        seed = config.PRIVATE_KEY.to_bytes()
+        key_ = NyzoStringEncoder.encode(NyzoStringPrivateSeed.from_hex(seed.hex()))
+    else:
+        seed = NyzoStringEncoder.decode(key_).get_bytes()
+    key, pub = KeyUtil.get_from_private_seed(seed.hex())
+    address = pub.to_ascii(encoding="hex").decode('utf-8')
+    if float(amount) <= 0:
+        raise ValueError("Amount has to be > 0")
+    if not re.match(r"[0-9A-Z_]{3,32}", token_name):
+        raise ValueError(f"Token name '{token_name}' does not follow rules")
+    if VERBOSE:
+        print(f"token burn {token_name} amount {amount}")
+    data = f"TB:{token_name}:{amount}"
+    fees = 0.000001
+    # Test via API
+    recipient = CYCLE_ADDRESS_HEX
+    url = f"{ctx.obj['token']}/check_tx/{address}/{recipient}/{fees:0.6f}/{data}"
+    if VERBOSE:
+        print(url)
+    res = get(url).text
+    if VERBOSE:
+        print(res)
+    if "Error:" in res:
+        print(res)
+    else:
+        # Assemble, sign and forward if ok
+        client = NyzoClient(ctx.obj['client'])
+        res = client.send(recipient, fees, data, key_)
+        print(res)
+
+
+@token.command("send")
+@click.pass_context
+@click.argument('recipient', type=str)
+@click.argument('amount', type=str)
+@click.argument('token_name', type=str)
+@click.argument('key_', default="", type=str)
+def token_send(ctx, recipient: str, amount: str, token_name: str, key_: str=""):
+    # ./Nyzocli.py --verbose token send 3f19e603b9577b6f91d4c84531e1e94e946aa172063ea3a88efb26e3fe75bb84 1.123 TEST3
+    if key_ == "":
+        seed = config.PRIVATE_KEY.to_bytes()
+        key_ = NyzoStringEncoder.encode(NyzoStringPrivateSeed.from_hex(seed.hex()))
+    else:
+        seed = NyzoStringEncoder.decode(key_).get_bytes()
+    key, pub = KeyUtil.get_from_private_seed(seed.hex())
+    address = pub.to_ascii(encoding="hex").decode('utf-8')
+    id__recipient, recipient = normalize_address(recipient, asHex=True)
+    print(f"token transfer {token_name} amount {amount} to {recipient}")
+    data = f"TT:{token_name}:{amount}"
+    fees = 0.000001
+    # Test via API
+    url = f"{ctx.obj['token']}/check_tx/{address}/{recipient}/{fees:0.6f}/{data}"
+    if VERBOSE:
+        print(url)
+    res = get(url).text
+    if VERBOSE:
+        print(res)
+    if "Error:" in res:
+        print(res)
+    else:
+        # Assemble, sign and forward if ok
+        client = NyzoClient(ctx.obj['client'])
+        res = client.send(recipient, fees , data, key_)
+        print(res)
+
+
+@token.command("ownership")
+@click.pass_context
+@click.argument('token_name', type=str)
+@click.argument('recipient', type=str)
+@click.argument('key_', default="", type=str)
+def token_ownership(ctx, token_name: str,  recipient: str, key_: str=""):
+    # ./Nyzocli.py --verbose token ownership TEST3 3f19e603b9577b6f91d4c84531e1e94e946aa172063ea3a88efb26e3fe75bb84
+    if key_ == "":
+        seed = config.PRIVATE_KEY.to_bytes()
+        key_ = NyzoStringEncoder.encode(NyzoStringPrivateSeed.from_hex(seed.hex()))
+    else:
+        seed = NyzoStringEncoder.decode(key_).get_bytes()
+    key, pub = KeyUtil.get_from_private_seed(seed.hex())
+    address = pub.to_ascii(encoding="hex").decode('utf-8')
+    id__recipient, recipient = normalize_address(recipient, asHex=True)
+    print(f"token ownership transfer {token_name} to {recipient}")
+    data = f"TO:{token_name}"
+    fees = 0.000001
+    # Test via API
+    url = f"{ctx.obj['token']}/check_tx/{address}/{recipient}/{fees:0.6f}/{data}"
+    if VERBOSE:
+        print(url)
+    res = get(url).text
+    if VERBOSE:
+        print(res)
+    if "Error:" in res:
+        print("E", res)
+    else:
+        # Assemble, sign and forward if ok
+        client = NyzoClient(ctx.obj['client'])
+        res = client.send(recipient, fees , data, key_)
+        print(res)
+
 
 if __name__ == '__main__':
     logger = logging.getLogger('push')
