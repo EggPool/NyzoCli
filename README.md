@@ -294,6 +294,56 @@ or as json:
 }`
 ``` 
 
+## New in 0.0.11, safe_send command
+
+Same as send, with no "above" parameter.
+Signs and sends a tx. Wait until the block is frozen.  
+If the transaction is not in that block, resend it until it passes (5 tries).  
+ex:  
+`./Nyzocli.py safe_send abd7fede35a84b10-8a36e6dc361d9b32-ca84d149f6eb85b4-a4e63015278d4c9f 10 key_...`
+
+Can be used without "key_" to use the default wallet.
+
+
+## New in 0.0.10, Nytro Tokens commands
+
+### Token send
+
+Example command: `./NyzoCli token send id_xxxx 10 TEST`    
+sends 10 "TEST" tokens to id_xxxx
+
+### Token balance
+
+Get balances - all tokens - for an address (raw or id__)  
+`./Nyzocli.py token balance a49138f27485cae4096c3eb72f9425943fe4b6f346d0fc76ef40084ec767365d`
+
+or just get balance for a specific token  
+`./Nyzocli.py token balance a49138f27485cae4096c3eb72f9425943fe4b6f346d0fc76ef40084ec767365d TEST2`
+
+### Token issue
+
+Issue a token: token name, number of decimals, supply   
+`./Nyzocli.py --verbose token issue -- TEST3 3 -1`
+
+If you use "-1" as supply (meaning mintable token) you need to use the `--` after the " token issue" command.
+
+### Token mint
+
+Only for mintable tokens, if you are the current owner.  
+Ex: mint 100 tokens "TEST3"  
+`./Nyzocli.py --verbose token mint TEST3 100`
+
+### Token burn
+
+Only for mintable tokens, up to the amount you have on your balance.    
+Ex: burn 3.123 tokens "TEST3"    
+`./Nyzocli.py --verbose token burn TEST3 3.123`
+
+### Token ownership
+
+Only for mintable tokens, if you are the current owner.    
+Ex: transfer the ownership of "TEST3" to the recipient:     
+`./Nyzocli.py --verbose token ownership TEST3 3f19e603b9577b6f91d4c84531e1e94e946aa172063ea3a88efb26e3fe75bb84`
 
 
 
@@ -311,19 +361,23 @@ Still some debug or trace messages left over from the pynyzo package to be clean
 
 ## Short term roadmap
 
-Done - Move from using a verifier to using a nyzo client by default (balance)
+- (done) Move from using a verifier to using a nyzo client by default (balance)
 - Fine tune commands and options
-Done (partially?) - Generalize autodetection of address format between raw bytes and nyzostrings.
+- Done (partially?) Generalize autodetection of address format between raw bytes and nyzostrings.
 - Add conversion utils from/to Nyzo strings
-Done - allow to send full balance (empty wallet)
+- (Done) allow to send full balance (empty wallet)
 
 ## Mid term roadmap
 
-- Add support for Nyzo tokens
+- (Done) Add support for Nyzo tokens
 - Easier installation, Windows pre-compiled releases
 
 
 ## Releases
+
+* 0.0.11 - safe_send command (retries if necessary until the tx is frozen or fails)
+
+* 0.0.10 - Tokens support
 
 * 0.0.8 - Bugfix and proper doc for send full balance.
 

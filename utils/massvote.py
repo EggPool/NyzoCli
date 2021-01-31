@@ -22,8 +22,8 @@ For ncfp3, you can get and rename the ncfp3-sigs.txt from open nyzo github to vo
 
 # You can adjust here to your liking. wait will be random between these two.
 # these are seconds.
-MIN_WAIT_BETWEEN_VOTE = 70
-MAX_WAIT_BETWEEN_VOTE = 300
+MIN_WAIT_BETWEEN_VOTE = 150
+MAX_WAIT_BETWEEN_VOTE = 900
 
 # Set to False if you don't want to query nyzo.today for existing votes.
 # Does not give any info about your verifiers, just asks the list of votes for a given sig_

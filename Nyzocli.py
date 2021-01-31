@@ -11,7 +11,7 @@ import logging
 # import pprint
 import sys
 from os import path
-from time import time
+from time import time, sleep
 from typing import Tuple, Union
 
 import click
@@ -37,7 +37,7 @@ from pynyzo.transaction import Transaction
 from pynyzo.clienthelpers import NyzoClient
 
 
-__version__ = '0.0.9'
+__version__ = '0.0.11'
 
 
 VERBOSE = False
@@ -353,12 +353,6 @@ def send(ctx, recipient, amount: float=0, above: float=0, data: str="", key_: st
     my_balance = None
     if above > 0:
         my_balance = ctx.invoke(balance, address=address)
-        # my_balance = balance(ctx, address)
-        """connect(ctx, ctx.obj['verifier_ip'])
-        con = ctx.obj['connection']
-        ctx.obj['address'] = address
-        my_balance = float(con.command('balanceget', [ctx.obj['address']])[0])
-        """
         if my_balance <= above:
             if VERBOSE:
                 app_log.warning("Balance too low, {} instead of required {}, dropping.".format(my_balance, above))
@@ -405,16 +399,8 @@ def send(ctx, recipient, amount: float=0, above: float=0, data: str="", key_: st
     # print("key", key.to_bytes().hex())
     to_sign = transaction.get_bytes(for_signing=True)
     # print("To Sign", to_sign.hex())
-    # 02
-    # 000001767a954510
-    # 00000000000f4240
-    # abd7fede35a84b108a36e6dc361d9b32ca84d149f6eb85b4a4e63015278d4c9f
-    # 5a27d96a251e71f9e5fb2c14a76c8a43575f7705d50088b40c1e825cda2dd0b9
-    # a9adad21e06aadeac7b0e09a66279b733c9d80fde7ed79b3994c31eb18129b0b
-    # 5df6e0e2761359d30a8275058e299fcc0381534545f55cf43e41983f5d4c9456
     sign = KeyUtil.sign_bytes(to_sign, key)
     # print("Sign", sign.hex())
-
     """"    
         tx_type: int,
         timestamp: int,
@@ -454,6 +440,52 @@ def send(ctx, recipient, amount: float=0, above: float=0, data: str="", key_: st
             print("Error:", temp[-1]["error"])
         else:
             print("Ok")
+
+
+@cli.command()
+@click.pass_context
+@click.argument('recipient', type=str)
+@click.argument('amount', default=0, type=float)
+@click.argument('data', default='', type=str)
+@click.argument('key_', default="", type=str)  # key_ to vote with
+def safe_send(ctx, recipient, amount: float = 0, data: str = "", key_: str = ""):
+    """
+    Send Nyzo to a RECIPIENT then makes sure it is embedded in the planned block.
+    If no seed is given, use the wallet one.
+    - ex: python3 Nyzocli.py safe_send abd7fede35a84b10-8a36e6dc361d9b32-ca84d149f6eb85b4-a4e63015278d4c9f 10
+    - ex: python3 Nyzocli.py safe_send abd7fede35a84b10-8a36e6dc361d9b32-ca84d149f6eb85b4-a4e63015278d4c9f 10 key_...
+    """
+    if key_ == "":
+        seed = config.PRIVATE_KEY.to_bytes()
+        key_ = NyzoStringEncoder.encode(NyzoStringPrivateSeed.from_hex(seed.hex()))
+    else:
+        seed = NyzoStringEncoder.decode(key_).get_bytes()
+    # convert key to address
+    address = KeyUtil.private_to_public(seed.hex())
+
+    my_balance = ctx.invoke(balance, address=address)
+    if amount == -1:
+        if my_balance is None:
+            my_balance = ctx.invoke(balance, address=address)
+            print(my_balance)
+            # my_balance = balance(ctx, address)
+        amount = float(my_balance)
+        if amount <= 0:
+            if VERBOSE:
+                app_log.warning("Balance too low or unknown {}, dropping.".format(my_balance))
+            print(json.dumps({"result": "Error", "reason": "Balance too low, {}"
+                             .format(my_balance)}))
+            return
+        else:
+            if VERBOSE:
+                app_log.warning("Sending full balance {}.".format(my_balance))
+
+    recipient, recipient_raw = normalize_address(recipient, asHex=True)
+
+    client = NyzoClient(ctx.obj['client'])
+    res = client.safe_send(recipient, amount, data, key_, max_tries=5, verbose=True)
+    print(res)
+    return
 
 
 @cli.command()
