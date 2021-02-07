@@ -298,7 +298,6 @@ def frozen(ctx):
 
 def normalize_address(address: str, asHex: bool=False) -> Union[Tuple[str, str], Tuple[str, bytes]]:
     """Takes an address as raw byte or id__ and provides both formats back"""
-    print(address)
     try:
         # convert recipient to raw if provided as id__
         if address.startswith("id__"):
