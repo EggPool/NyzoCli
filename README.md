@@ -375,6 +375,8 @@ Still some debug or trace messages left over from the pynyzo package to be clean
 
 ## Releases
 
+* 0.0.12 - bug fix for some id_ string, upgrade pynyzo requirement.
+
 * 0.0.11 - safe_send command (retries if necessary until the tx is frozen or fails)
 
 * 0.0.10 - Tokens support

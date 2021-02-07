@@ -37,7 +37,7 @@ from pynyzo.transaction import Transaction
 from pynyzo.clienthelpers import NyzoClient
 
 
-__version__ = '0.0.11'
+__version__ = '0.0.12'
 
 
 VERBOSE = False
@@ -155,8 +155,6 @@ def balance(ctx, address):
     """
     if address == '':
         address = config.PUBLIC_KEY.to_bytes().hex()
-    else:
-        address = address.replace('-', '')
     id__address, address = normalize_address(address, asHex=True)
     if VERBOSE:
         app_log.info(f"Get balance for address {address}")
@@ -205,7 +203,6 @@ def vbalance(ctx, address):
     if address == '':
         address = config.PUBLIC_KEY.to_bytes().hex()
     else:
-        address = address.replace('-', '')
         id__address, address = normalize_address(address, asHex=True)
 
     if VERBOSE:
@@ -301,6 +298,7 @@ def frozen(ctx):
 
 def normalize_address(address: str, asHex: bool=False) -> Union[Tuple[str, str], Tuple[str, bytes]]:
     """Takes an address as raw byte or id__ and provides both formats back"""
+    print(address)
     try:
         # convert recipient to raw if provided as id__
         if address.startswith("id__"):

@@ -2,5 +2,5 @@ setuptools
 wheel
 click
 requests
-pynyzo >= 0.0.12
+pynyzo >= 0.0.13
 nyzostrings >= 0.0.6
